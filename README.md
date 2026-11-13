@@ -32,6 +32,7 @@
 
 - `.github/workflows/build.yml`：拉取上游指定提交，清掉本机专用 Gradle 配置后按矩阵构建
 - `scripts/collect_jar.py`：只挑主 jar，校验里面确实有 mod 元数据，再计算 SHA256
+- `scripts/record_build.py`：把上游 SHA、构建时间和每个 jar 的大小写进 `last-build.json`，同时让仓库保持活跃，避免定时任务被 GitHub 自动停用
 
 本仓库不含上游代码，也不对上游源码做任何修改。
 

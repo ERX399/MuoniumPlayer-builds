@@ -14,6 +14,7 @@ on:
     - cron: "0 20 * * *"
   push:
     branches: ["main"]
+    paths-ignore: ["last-build.json"]
 
 permissions:
   contents: read
@@ -208,6 +209,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: 检出构建仓库
+        uses: actions/checkout@v7
+        with:
+          path: repo
+
       - name: 汇总产物
         uses: actions/download-artifact@v8
         with:
@@ -220,6 +226,19 @@ jobs:
           ls -lh
           sha256sum -- *.jar > SHA256SUMS
           cat SHA256SUMS
+
+      - name: 记录本次构建
+        env:
+          UPSTREAM_SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          python3 "$GITHUB_WORKSPACE/repo/scripts/record_build.py" dist repo/last-build.json
+          cd repo
+          git add last-build.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='咡如夏' \
+              -c user.email='201088719+ERX399@users.noreply.github.com' \
+              commit -m "chore: 记录 nightly 构建 ${UPSTREAM_SHA:0:7}"
+          git push
 
       - name: 写入发布说明
         env:
