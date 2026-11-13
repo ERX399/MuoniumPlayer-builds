@@ -1,0 +1,250 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 上游 ref（分支、标签或 commit SHA）
+        default: main
+      publish:
+        description: 构建成功后更新 nightly Release
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 20 * * *"
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: https://github.com/zihe114514/MuoniumPlayer-multiversion.git
+
+jobs:
+  prepare:
+    name: 解析上游提交
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      ref: ${{ steps.resolve.outputs.ref }}
+    steps:
+      - id: resolve
+        env:
+          REF: ${{ inputs.ref || 'main' }}
+        run: |
+          SHA=$(git ls-remote "$UPSTREAM" "$REF" | awk 'NR==1{print $1}')
+          if [ -z "$SHA" ]; then SHA="$REF"; fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "上游 $REF -> $SHA"
+
+  build:
+    name: ${{ matrix.tree }} / ${{ matrix.loader }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tree: "1.20.1 recode"
+            slug: 1.20.1-recode
+            loader: fabric
+            java: 21
+          - tree: "1.20.1 recode"
+            slug: 1.20.1-recode
+            loader: forge
+            java: 21
+          - tree: "1.21.1"
+            slug: 1.21.1
+            loader: fabric
+            java: 21
+          - tree: "1.21.1"
+            slug: 1.21.1
+            loader: neoforge
+            java: 21
+          - tree: "1.21.10"
+            slug: 1.21.10
+            loader: fabric
+            java: 21
+          - tree: "1.21.10"
+            slug: 1.21.10
+            loader: neoforge
+            java: 21
+          - tree: "1.21.11 recode"
+            slug: 1.21.11-recode
+            loader: fabric
+            java: 21
+          - tree: "1.21.11 recode"
+            slug: 1.21.11-recode
+            loader: neoforge
+            java: 21
+          - tree: "26.1.2"
+            slug: 26.1.2
+            loader: fabric
+            java: 25
+          - tree: "26.1.2"
+            slug: 26.1.2
+            loader: neoforge
+            java: 25
+          - tree: "26.2"
+            slug: 26.2
+            loader: fabric
+            java: 25
+          - tree: "26.2"
+            slug: 26.2
+            loader: neoforge
+            java: 25
+          - tree: "26.3"
+            slug: 26.3
+            loader: fabric
+            java: 25
+          - tree: "26.3"
+            slug: 26.3
+            loader: neoforge
+            java: 25
+    steps:
+      - name: 检出构建仓库
+        uses: actions/checkout@v4
+
+      - name: 拉取上游源码
+        env:
+          UPSTREAM_SHA: ${{ needs.prepare.outputs.sha }}
+          UPSTREAM_REF: ${{ needs.prepare.outputs.ref }}
+        run: |
+          git init -q upstream
+          cd upstream
+          git remote add origin "$UPSTREAM"
+          if ! git fetch --depth 1 origin "$UPSTREAM_SHA"; then
+            git fetch --depth 1 origin "$UPSTREAM_REF"
+          fi
+          git checkout -q FETCH_HEAD
+          echo "HEAD=$(git rev-parse HEAD)"
+
+      - name: 安装 JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+
+      - name: 缓存 Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/caches/fabric-loom
+            ~/.gradle/caches/neoform
+            ~/.gradle/wrapper
+          key: gradle-${{ matrix.slug }}-${{ matrix.loader }}-${{ hashFiles(format('upstream/{0}/gradle.properties', matrix.tree)) }}
+          restore-keys: |
+            gradle-${{ matrix.slug }}-${{ matrix.loader }}-
+
+      - name: 去掉本机专用配置
+        env:
+          TREE: ${{ matrix.tree }}
+        run: |
+          cd "upstream/$TREE"
+          sed -i \
+            -e '/^org\.gradle\.java\.home=/d' \
+            -e '/^systemProp\.http\.proxyHost=/d' \
+            -e '/^systemProp\.http\.proxyPort=/d' \
+            -e '/^systemProp\.https\.proxyHost=/d' \
+            -e '/^systemProp\.https\.proxyPort=/d' \
+            gradle.properties
+          grep -E 'java.home|proxyHost' gradle.properties || echo "已清理"
+
+      - name: 准备 Skija Linux 原生库（仅 fabric）
+        if: matrix.loader == 'fabric'
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/skija-native"
+          curl -sfL --retry 3 \
+            "https://maven.aliyun.com/repository/public/io/github/humbleui/skija-linux-x64/0.143.17/skija-linux-x64-0.143.17.jar" \
+            -o "$GITHUB_WORKSPACE/skija-native/skija-linux-x64.jar"
+          cd "$GITHUB_WORKSPACE/skija-native"
+          unzip -o -q skija-linux-x64.jar
+          echo "SKIJA_LIB_DIR=$GITHUB_WORKSPACE/skija-native/io/github/humbleui/skija/linux/x64" >> "$GITHUB_ENV"
+
+      - name: 构建
+        env:
+          TREE: ${{ matrix.tree }}
+          LOADER: ${{ matrix.loader }}
+        run: |
+          cd "upstream/$TREE"
+          chmod +x gradlew
+          if [ "$LOADER" = "fabric" ] && [ -n "${SKIJA_LIB_DIR:-}" ]; then
+            export GRADLE_OPTS="-Djava.library.path=$SKIJA_LIB_DIR $GRADLE_OPTS"
+          fi
+          ./gradlew ":$LOADER:build" --console=plain --stacktrace
+
+      - name: 收集主 jar
+        env:
+          TREE: ${{ matrix.tree }}
+          LOADER: ${{ matrix.loader }}
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/collect_jar.py" \
+            --root "$GITHUB_WORKSPACE/upstream" \
+            --tree "$TREE" \
+            --loader "$LOADER" \
+            --out "$GITHUB_WORKSPACE/dist"
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-${{ matrix.slug }}-${{ matrix.loader }}
+          path: dist/*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: 发布 nightly
+    needs: [prepare, build]
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 汇总产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 生成校验和
+        run: |
+          cd dist
+          ls -lh
+          sha256sum -- *.jar > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: 写入发布说明
+        env:
+          UPSTREAM_SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          {
+            echo "上游：zihe114514/MuoniumPlayer-multiversion @ ${UPSTREAM_SHA}"
+            echo
+            echo "构建时间：$(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo
+            echo "只包含可直接放进 mods/ 的主 jar，不含源码包、dev 包和伴生包。"
+          } > body.md
+
+      - name: 删除旧 nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+
+      - name: 发布 nightly
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: 自动构建 nightly
+          prerelease: true
+          body_path: body.md
+          files: |
+            dist/*.jar
+            dist/SHA256SUMS
