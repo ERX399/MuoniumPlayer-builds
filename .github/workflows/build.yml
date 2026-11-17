@@ -244,13 +244,11 @@ jobs:
         env:
           UPSTREAM_SHA: ${{ needs.prepare.outputs.sha }}
         run: |
-          {
-            echo "上游：zihe114514/MuoniumPlayer-multiversion @ ${UPSTREAM_SHA}"
-            echo
-            echo "构建时间：$(date -u '+%Y-%m-%d %H:%M UTC')"
-            echo
-            echo "只包含可直接放进 mods/ 的主 jar，不含源码包、dev 包和伴生包。"
-          } > body.md
+          python3 "$GITHUB_WORKSPACE/repo/scripts/render_body.py" \
+            "$GITHUB_WORKSPACE/dist" \
+            --tag nightly \
+            --out "$GITHUB_WORKSPACE/body.md"
+          cat "$GITHUB_WORKSPACE/body.md"
 
       - name: 删除旧 nightly
         env:
