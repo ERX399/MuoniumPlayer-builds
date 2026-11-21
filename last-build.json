@@ -1,63 +1,63 @@
 {
   "upstream": "zihe114514/MuoniumPlayer-multiversion",
-  "sha": "ddfdf569de52579c1ebc71fb162a8c4e08618497",
-  "built_at": "2026-11-20T01:39:44Z",
+  "sha": "eb541684e9d681d8145f5f9d681cf31980646dc7",
+  "built_at": "2026-11-21T01:05:15Z",
   "jars": [
     {
       "name": "MuoniumPlayer-1.20.1-fabric-2.6.0.jar",
-      "size": 17640273
+      "size": 17655861
     },
     {
       "name": "MuoniumPlayer-1.20.1-forge-2.6.0.jar",
-      "size": 14380549
+      "size": 14395911
     },
     {
       "name": "MuoniumPlayer-1.21.1-fabric-2.6.0.jar",
-      "size": 17619269
+      "size": 17635390
     },
     {
       "name": "MuoniumPlayer-1.21.1-neoforge-2.6.0.jar",
-      "size": 14334004
+      "size": 14349655
     },
     {
       "name": "MuoniumPlayer-1.21.10-fabric-2.6.0.jar",
-      "size": 17628465
+      "size": 17644188
     },
     {
       "name": "MuoniumPlayer-1.21.10-neoforge-2.6.0.jar",
-      "size": 14343120
+      "size": 14358366
     },
     {
       "name": "MuoniumPlayer-1.21.11-fabric-2.6.0.jar",
-      "size": 17751908
+      "size": 17767628
     },
     {
       "name": "MuoniumPlayer-1.21.11-neoforge-2.6.0.jar",
-      "size": 14342648
+      "size": 14357891
     },
     {
       "name": "MuoniumPlayer-26.1.2-fabric-2.6.0.jar",
-      "size": 17670008
+      "size": 17685428
     },
     {
       "name": "MuoniumPlayer-26.1.2-neoforge-2.6.0.jar",
-      "size": 14326058
+      "size": 14341251
     },
     {
       "name": "MuoniumPlayer-26.2-fabric-2.6.0.jar",
-      "size": 17670807
+      "size": 17686257
     },
     {
       "name": "MuoniumPlayer-26.2-neoforge-2.6.0.jar",
-      "size": 14326813
+      "size": 14342036
     },
     {
       "name": "MuoniumPlayer-26.3-fabric-2.6.0.jar",
-      "size": 17670794
+      "size": 17686258
     },
     {
       "name": "MuoniumPlayer-26.3-neoforge-2.6.0.jar",
-      "size": 14325851
+      "size": 14341090
     }
   ]
 }
