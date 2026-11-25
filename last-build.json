@@ -1,7 +1,7 @@
 {
   "upstream": "zihe114514/MuoniumPlayer-multiversion",
   "sha": "02310aa85d4d20e116b8070568658fe444908290",
-  "built_at": "2026-11-24T04:36:42Z",
+  "built_at": "2026-11-25T03:21:13Z",
   "jars": [
     {
       "name": "MuoniumPlayer-1.20.1-fabric-2.6.1.jar",
